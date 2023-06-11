@@ -1,0 +1,20 @@
+
+{
+  "name": "react-native-react-native-settings",
+  "version": "1.0.7",
+  "description": "Essa lib, serve para voce usar o volume e ter conectividade com a internet",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "react-native"
+  ],
+  "author": "",
+  "license": "",
+  "peerDependencies": {
+    "react-native": "^0.41.2",
+    "react-native-windows": "0.41.0-rc.1"
+
+  }
+}
