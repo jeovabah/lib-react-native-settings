@@ -46,7 +46,28 @@
 ## Usage
 ```javascript
 import RNReactNativeSettings from 'react-native-react-native-settings';
+	  useEffect(() => {
+    RNReactNativeSettings.startListeningVolumeChanges();
+    const listenerVolume = DeviceEventEmitter.addListener(
+      "VolumeChange",
+      (data) => {
+        console.log("Volume mudou para", data.currentVolume);
+      }
+    );
 
+    RNReactNativeSettings.startListeningNetworkChanges();
+    const listenerNetwork = DeviceEventEmitter.addListener(
+      "NetworkChange",
+      (data) => {
+        console.log("internet mudada", data);
+      }
+    );
+
+    return () => {
+      listenerNetwork.remove();
+      listenerVolume.remove();
+    };
+  }, []);
 // TODO: What to do with the module?
 RNReactNativeSettings;
 ```
