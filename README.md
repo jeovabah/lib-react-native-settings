@@ -20,7 +20,7 @@
 4. Run your project (`Cmd+R`)<
 
 #### Android
-
+ ### Se usar expo, lembre de baixar um apk de desenvolvimento que use o npx expo start --dev-client. (Modulos nativos tais como esse, precisa ser rebuildado para funcionar no expo.)
 1. Open up `android/app/src/main/java/[...]/MainActivity.java`
   - Add `import com.reactlibrary.RNReactNativeSettingsPackage;` to the imports at the top of the file
   - Add `new RNReactNativeSettingsPackage()` to the list returned by the `getPackages()` method
@@ -46,27 +46,30 @@
 ## Usage
 ```javascript
 import RNReactNativeSettings from 'react-native-react-native-settings';
+import { useEffect } from "react";
+
 	  useEffect(() => {
-    RNReactNativeSettings.startListeningVolumeChanges();
-    const listenerVolume = DeviceEventEmitter.addListener(
-      "VolumeChange",
-      (data) => {
-        console.log("Volume mudou para", data.currentVolume);
-      }
-    );
+      // Serve para Monitorar o volume do celular
+        RNReactNativeSettings.startListeningVolumeChanges();
+        const listenerVolume = DeviceEventEmitter.addListener(
+          "VolumeChange",
+          (data) => {
+            console.log("Volume mudou para", data.currentVolume);
+          }
+        );
+          // Serve para Monitorar a internet do celular
+        RNReactNativeSettings.startListeningNetworkChanges();
+        const listenerNetwork = DeviceEventEmitter.addListener(
+          "NetworkChange",
+          (data) => {
+            console.log("internet: ", data);
+          }
+        );
 
-    RNReactNativeSettings.startListeningNetworkChanges();
-    const listenerNetwork = DeviceEventEmitter.addListener(
-      "NetworkChange",
-      (data) => {
-        console.log("internet mudada", data);
-      }
-    );
-
-    return () => {
-      listenerNetwork.remove();
-      listenerVolume.remove();
-    };
+        return () => {
+          listenerNetwork.remove();
+          listenerVolume.remove();
+        };
   }, []);
 // TODO: What to do with the module?
 RNReactNativeSettings;
