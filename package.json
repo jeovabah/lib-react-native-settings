@@ -1,8 +1,8 @@
 
 {
   "name": "react-native-react-native-settings",
-  "version": "1.0.11",
-  "description": "Essa lib, serve para voce usar o volume e ter conectividade com a internet",
+  "version": "1.0.12",
+  "description": "Essa lib, serve para voce usar o volume e ter conectividade com a internet  VERSAO MAIS ESTAVEL 1.0.11",
   "main": "index.ts",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
