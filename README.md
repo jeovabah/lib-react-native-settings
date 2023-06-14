@@ -45,11 +45,13 @@
 
 ## Usage
 ```javascript
-import RNReactNativeSettings from 'react-native-react-native-settings';
-import { useEffect } from "react";
 
-	  useEffect(() => {
-      // Serve para Monitorar o volume do celular
+import RNReactNativeSettings from 'react-native-react-native-settings';
+
+import { useEffect } from "react";
+import {DeviceEventEmitter} from "react-native";
+  useEffect(() => {
+      // Voce recisa chamar o startListeningVolumeChanges() para começar a monitorar o volume
         RNReactNativeSettings.startListeningVolumeChanges();
         const listenerVolume = DeviceEventEmitter.addListener(
           "VolumeChange",
@@ -57,7 +59,8 @@ import { useEffect } from "react";
             console.log("Volume mudou para", data.currentVolume);
           }
         );
-          // Serve para Monitorar a internet do celular
+
+      // Voce recisa chamar o startListeningNetworkChanges() para começar a monitorar a internet
         RNReactNativeSettings.startListeningNetworkChanges();
         const listenerNetwork = DeviceEventEmitter.addListener(
           "NetworkChange",
