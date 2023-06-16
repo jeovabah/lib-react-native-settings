@@ -8,7 +8,6 @@ import android.media.AudioManager;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import androidx.annotation.Nullable;
-import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import com.facebook.react.bridge.Callback;
 import com.facebook.react.bridge.ReactApplicationContext;
@@ -16,6 +15,7 @@ import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.Arguments;
+import com.facebook.react.modules.appstate.AppStateModule;
 import com.facebook.react.modules.core.DeviceEventManagerModule;
 
 public class RNReactNativeSettingsModule extends ReactContextBaseJavaModule {
@@ -23,6 +23,8 @@ public class RNReactNativeSettingsModule extends ReactContextBaseJavaModule {
   private final AudioManager audioManager;
   private final VolumeChangeReceiver volumeChangeReceiver;
   private final NetworkChangeReceiver networkChangeReceiver;
+  private static final long MIN_UPDATE_INTERVAL = 500; // Intervalo mínimo entre as notificações de mudança de volume (em milissegundos)
+  private long lastVolumeUpdateTime = 0;
 
   public RNReactNativeSettingsModule(ReactApplicationContext reactContext) {
     super(reactContext);
@@ -40,14 +42,91 @@ public class RNReactNativeSettingsModule extends ReactContextBaseJavaModule {
   @Override
   public void onCatalystInstanceDestroy() {
     try {
-      registerNetworkChangeReceiver(); // Registrar o receptor de transmissão antes de desregistrá-lo
-      LocalBroadcastManager.getInstance(reactContext).unregisterReceiver(volumeChangeReceiver);
+      unregisterNetworkChangeReceiver(); // Desregistrar o receptor de transmissão antes de destruí-lo
+      reactContext.unregisterReceiver(volumeChangeReceiver);
+      reactContext.unregisterReceiver(networkChangeReceiver);
+    } catch (Exception e) {
+      // Lidar com exceção
+      e.printStackTrace();
+      // Emitir evento de erro para o JavaScript
+      sendErrorEvent("Error", "Ocorreu um erro ao desregistrar os receptores de transmissão. Tente usar um módulo nativo.");
+    }
+  }
+
+  private void unregisterNetworkChangeReceiver() {
+    try {
       reactContext.unregisterReceiver(networkChangeReceiver);
     } catch (Exception e) {
       // Lidar com exceção
       e.printStackTrace();
       // Emitir evento de erro para o JavaScript
       sendErrorEvent("Error", "Ocorreu um erro ao desregistrar o receptor de transmissão. Tente usar um módulo nativo.");
+    }
+  }
+
+  @ReactMethod
+  public void getVolumeState(Callback callback) {
+    try {
+      if (isAppInForeground()) {
+        if (isVolumeUpdateAllowed()) {
+          int currentVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC);
+          int maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
+
+          WritableMap volumeState = Arguments.createMap();
+          volumeState.putInt("currentVolume", currentVolume);
+          volumeState.putInt("maxVolume", maxVolume);
+
+          callback.invoke(volumeState);
+
+          updateLastVolumeUpdateTime();
+        }
+      } else {
+        // O aplicativo está em segundo plano, não faça nada
+      }
+    } catch (Exception e) {
+      // Lidar com exceção
+      e.printStackTrace();
+      // Emitir evento de erro para o JavaScript
+      sendErrorEvent("Error", "Ocorreu um erro ao obter o estado do volume. Tente usar um módulo nativo.");
+    }
+  }
+
+  @ReactMethod
+  public void hasInternetConnection(Callback callback) {
+    try {
+      if (isAppInForeground()) {
+        ConnectivityManager connectivityManager = (ConnectivityManager) reactContext.getSystemService(Context.CONNECTIVITY_SERVICE);
+        NetworkInfo activeNetwork = connectivityManager.getActiveNetworkInfo();
+        boolean isConnected = activeNetwork != null && activeNetwork.isConnectedOrConnecting();
+
+        callback.invoke(isConnected);
+      } else {
+        // O aplicativo está em segundo plano, não faça nada
+      }
+    } catch (Exception e) {
+      // Lidar com exceção
+      e.printStackTrace();
+      // Emitir evento de erro para o JavaScript
+      sendErrorEvent("Error", "Ocorreu um erro ao verificar a conexão de internet. Tente usar um módulo nativo.");
+    }
+  }
+
+  @Override
+  public void initialize() {
+    super.initialize();
+    registerVolumeChangeReceiver();
+    registerNetworkChangeReceiver();
+  }
+
+  private void registerVolumeChangeReceiver() {
+    try {
+      IntentFilter filter = new IntentFilter("android.media.VOLUME_CHANGED_ACTION");
+      reactContext.registerReceiver(volumeChangeReceiver, filter);
+    } catch (Exception e) {
+      // Lidar com exceção
+      e.printStackTrace();
+      // Emitir evento de erro para o JavaScript
+      sendErrorEvent("Error", "Ocorreu um erro ao iniciar a escuta das mudanças de volume. Tente usar um módulo nativo.");
     }
   }
 
@@ -63,88 +142,18 @@ public class RNReactNativeSettingsModule extends ReactContextBaseJavaModule {
     }
   }
 
-  @ReactMethod
-  public void getVolumeState(Callback callback) {
-    try {
-      int currentVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC);
-      int maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
-
-      WritableMap volumeState = Arguments.createMap();
-      volumeState.putInt("currentVolume", currentVolume);
-      volumeState.putInt("maxVolume", maxVolume);
-
-      callback.invoke(volumeState);
-    } catch (Exception e) {
-      // Lidar com exceção
-      e.printStackTrace();
-      // Emitir evento de erro para o JavaScript
-      sendErrorEvent("Error", "Ocorreu um erro ao obter o estado do volume. Tente usar um módulo nativo.");
-    }
+  private boolean isAppInForeground() {
+    String appState = reactContext.getCurrentActivity() != null ? AppStateModule.APP_STATE_ACTIVE : AppStateModule.APP_STATE_BACKGROUND;
+    return appState.equals(AppStateModule.APP_STATE_ACTIVE);
   }
 
-  @ReactMethod
-  public void hasInternetConnection(Callback callback) {
-    try {
-      ConnectivityManager connectivityManager = (ConnectivityManager) reactContext.getSystemService(Context.CONNECTIVITY_SERVICE);
-      NetworkInfo activeNetwork = connectivityManager.getActiveNetworkInfo();
-      boolean isConnected = activeNetwork != null && activeNetwork.isConnectedOrConnecting();
-
-      callback.invoke(isConnected);
-    } catch (Exception e) {
-      // Lidar com exceção
-      e.printStackTrace();
-      // Emitir evento de erro para o JavaScript
-      sendErrorEvent("Error", "Ocorreu um erro ao verificar a conexão de internet. Tente usar um módulo nativo.");
-    }
+  private boolean isVolumeUpdateAllowed() {
+    long currentTime = System.currentTimeMillis();
+    return currentTime - lastVolumeUpdateTime > MIN_UPDATE_INTERVAL;
   }
 
-  @ReactMethod
-  public void startListeningVolumeChanges() {
-    try {
-      IntentFilter filter = new IntentFilter("android.media.VOLUME_CHANGED_ACTION");
-      reactContext.registerReceiver(volumeChangeReceiver, filter);
-    } catch (Exception e) {
-      // Lidar com exceção
-      e.printStackTrace();
-      // Emitir evento de erro para o JavaScript
-      sendErrorEvent("Error", "Ocorreu um erro ao iniciar a escuta das mudanças de volume. Tente usar um módulo nativo.");
-    }
-  }
-
-  @ReactMethod
-  public void stopListeningVolumeChanges() {
-    try {
-      reactContext.unregisterReceiver(volumeChangeReceiver);
-    } catch (Exception e) {
-      // Lidar com exceção
-      e.printStackTrace();
-      // Emitir evento de erro para o JavaScript
-      sendErrorEvent("Error", "Ocorreu um erro ao parar a escuta das mudanças de volume. Tente usar um módulo nativo.");
-    }
-  }
-
-  @ReactMethod
-  public void startListeningNetworkChanges() {
-    try {
-      registerNetworkChangeReceiver(); // Registrar o receptor de transmissão antes de usá-lo
-    } catch (Exception e) {
-      // Lidar com exceção
-      e.printStackTrace();
-      // Emitir evento de erro para o JavaScript
-      sendErrorEvent("Error", "Ocorreu um erro ao iniciar a escuta das mudanças de rede. Tente usar um módulo nativo.");
-    }
-  }
-
-  @ReactMethod
-  public void stopListeningNetworkChanges() {
-    try {
-      reactContext.unregisterReceiver(networkChangeReceiver);
-    } catch (Exception e) {
-      // Lidar com exceção
-      e.printStackTrace();
-      // Emitir evento de erro para o JavaScript
-      sendErrorEvent("Error", "Ocorreu um erro ao parar a escuta das mudanças de rede. Tente usar um módulo nativo.");
-    }
+  private void updateLastVolumeUpdateTime() {
+    lastVolumeUpdateTime = System.currentTimeMillis();
   }
 
   private void sendEvent(String eventName, @Nullable WritableMap params) {
@@ -169,20 +178,24 @@ public class RNReactNativeSettingsModule extends ReactContextBaseJavaModule {
     @Override
     public void onReceive(Context context, Intent intent) {
       if (intent.getAction().equals("android.media.VOLUME_CHANGED_ACTION")) {
-        try {
-          int currentVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC);
-          int maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
+        if (isVolumeUpdateAllowed()) {
+          updateLastVolumeUpdateTime();
 
-          WritableMap volumeState = Arguments.createMap();
-          volumeState.putInt("currentVolume", currentVolume);
-          volumeState.putInt("maxVolume", maxVolume);
+          try {
+            int currentVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC);
+            int maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
 
-          sendEvent("VolumeChange", volumeState);
-        } catch (Exception e) {
-          // Lidar com exceção
-          e.printStackTrace();
-          // Emitir evento de erro para o JavaScript
-          sendErrorEvent("Error", "Ocorreu um erro ao obter as mudanças de volume. Tente usar um módulo nativo.");
+            WritableMap volumeState = Arguments.createMap();
+            volumeState.putInt("currentVolume", currentVolume);
+            volumeState.putInt("maxVolume", maxVolume);
+
+            sendEvent("VolumeChange", volumeState);
+          } catch (Exception e) {
+            // Lidar com exceção
+            e.printStackTrace();
+            // Emitir evento de erro para o JavaScript
+            sendErrorEvent("Error", "Ocorreu um erro ao obter as mudanças de volume. Tente usar um módulo nativo.");
+          }
         }
       }
     }
@@ -198,20 +211,22 @@ public class RNReactNativeSettingsModule extends ReactContextBaseJavaModule {
     @Override
     public void onReceive(Context context, Intent intent) {
       if (intent.getAction().equals(ConnectivityManager.CONNECTIVITY_ACTION)) {
-        try {
-          ConnectivityManager connectivityManager = (ConnectivityManager) reactContext.getSystemService(Context.CONNECTIVITY_SERVICE);
-          NetworkInfo activeNetwork = connectivityManager.getActiveNetworkInfo();
-          boolean isConnected = activeNetwork != null && activeNetwork.isConnectedOrConnecting();
+        if (isAppInForeground()) {
+          try {
+            ConnectivityManager connectivityManager = (ConnectivityManager) reactContext.getSystemService(Context.CONNECTIVITY_SERVICE);
+            NetworkInfo activeNetwork = connectivityManager.getActiveNetworkInfo();
+            boolean isConnected = activeNetwork != null && activeNetwork.isConnectedOrConnecting();
 
-          WritableMap networkState = Arguments.createMap();
-          networkState.putBoolean("isConnected", isConnected);
+            WritableMap networkState = Arguments.createMap();
+            networkState.putBoolean("isConnected", isConnected);
 
-          sendEvent("NetworkChange", networkState);
-        } catch (Exception e) {
-          // Lidar com exceção
-          e.printStackTrace();
-          // Emitir evento de erro para o JavaScript
-          sendErrorEvent("Error", "Ocorreu um erro ao obter as mudanças de rede. Tente usar um módulo nativo.");
+            sendEvent("NetworkChange", networkState);
+          } catch (Exception e) {
+            // Lidar com exceção
+            e.printStackTrace();
+            // Emitir evento de erro para o JavaScript
+            sendErrorEvent("Error", "Ocorreu um erro ao obter as mudanças de rede. Tente usar um módulo nativo.");
+          }
         }
       }
     }
