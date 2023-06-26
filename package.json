@@ -1,7 +1,7 @@
 
 {
   "name": "react-native-react-native-settings",
-  "version": "1.0.15",
+  "version": "1.0.16",
   "description": "Essa lib monitora quado ha algum tipo de alteracao no volume e na conectividade de internet, ela tem esse determinado proposito, por conta disso ela nao tem nenhuma dependencia, ela e bem simples e facil de usar, ela e compativel com android e ios, e tambem com react-native-windows, ela e compativel com react-native 0.41.2 e react-native-windows 0.41.0-rc.1",
   "main": "index.ts",
   "scripts": {
