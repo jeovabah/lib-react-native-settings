@@ -8,6 +8,8 @@ import android.media.AudioManager;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import androidx.annotation.Nullable;
+import android.hardware.camera2.CameraAccessException;
+import android.hardware.camera2.CameraManager;
 
 import com.facebook.react.bridge.Callback;
 import com.facebook.react.bridge.ReactApplicationContext;
@@ -26,12 +28,22 @@ public class RNReactNativeSettingsModule extends ReactContextBaseJavaModule {
   private static final long MIN_UPDATE_INTERVAL = 500; // Intervalo mínimo entre as notificações de mudança de volume (em milissegundos)
   private long lastVolumeUpdateTime = 0;
 
+  private CameraManager cameraManager;
+  private String cameraId;
+
   public RNReactNativeSettingsModule(ReactApplicationContext reactContext) {
     super(reactContext);
     this.reactContext = reactContext;
     this.audioManager = (AudioManager) reactContext.getSystemService(Context.AUDIO_SERVICE);
     this.volumeChangeReceiver = new VolumeChangeReceiver(reactContext);
     this.networkChangeReceiver = new NetworkChangeReceiver(reactContext);
+
+    cameraManager = (CameraManager) reactContext.getSystemService(Context.CAMERA_SERVICE);
+    try {
+        cameraId = cameraManager.getCameraIdList()[0];
+    } catch (CameraAccessException e) {
+        e.printStackTrace();
+    }
   }
 
   @Override
@@ -231,4 +243,23 @@ public class RNReactNativeSettingsModule extends ReactContextBaseJavaModule {
       }
     }
   }
+
+    @ReactMethod
+    public void turnOn() {
+        try {
+            cameraManager.setTorchMode(cameraId, true);
+        } catch (CameraAccessException e) {
+            e.printStackTrace();
+        }
+    }
+
+    @ReactMethod
+    public void turnOff() {
+        try {
+            cameraManager.setTorchMode(cameraId, false);
+        } catch (CameraAccessException e) {
+            e.printStackTrace();
+        }
+    }
+  
 }
